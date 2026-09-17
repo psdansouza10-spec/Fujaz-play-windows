@@ -1,0 +1,52 @@
+name: Build FUJAZ PLAY Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Baixar arquivos do repositorio
+        uses: actions/checkout@v4
+
+      - name: Extrair projeto
+        shell: pwsh
+        run: |
+          Expand-Archive -Path "FUJAZ-PLAY-Windows-GitHub.zip" -DestinationPath "projeto" -Force
+
+      - name: Instalar .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restaurar pacotes
+        run: dotnet restore projeto/src/FujazPlay.Windows/FujazPlay.Windows.csproj
+
+      - name: Gerar versao Windows x64
+        run: dotnet publish projeto/src/FujazPlay.Windows/FujazPlay.Windows.csproj -c Release -r win-x64 --self-contained true -o projeto/publish
+
+      - name: Criar versao portatil
+        shell: pwsh
+        run: Compress-Archive -Path projeto\publish\* -DestinationPath FUJAZ-PLAY-Windows-Portable.zip -Force
+
+      - name: Instalar Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Criar instalador EXE
+        shell: pwsh
+        run: |
+          Set-Location projeto
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\FujazPlay.iss
+
+      - name: Publicar arquivos
+        uses: actions/upload-artifact@v4
+        with:
+          name: FUJAZ-PLAY-Windows
+          path: |
+            FUJAZ-PLAY-Windows-Portable.zip
+            projeto/installer/output/FUJAZ-PLAY-Windows-Setup.exe
